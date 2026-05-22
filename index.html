@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>사군자 기질 진단</title>
+    <!-- React & Babel CDNs -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons Library -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; }
+        .animate-fade-in { animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-white">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const Icon = ({ name, className }) => {
+            useEffect(() => {
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+            }, [name]);
+            return <i data-lucide={name} className={className}></i>;
+        };
+
+        const App = () => {
+            const [view, setView] = useState('intro');
+            const [eiIdx, setEiIdx] = useState(0);
+            const [sjIdx, setSjIdx] = useState(0);
+            const [eiScore, setEiScore] = useState({ E: 0, I: 0 });
+            const [sjScore, setSjScore] = useState({ M: 0, N: 0, G: 0, D: 0 });
+            const [tempSelection, setTempSelection] = useState([]); 
+            const [finalResults, setFinalResults] = useState([]); // Array to store multiple results
+            const [showShareModal, setShowShareModal] = useState(false);
+            const [isCopied, setIsCopied] = useState(false);
+
+            useEffect(() => {
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+            }, [view]);
+
+            const typeMap = {
+                EM: { id: 'EM', name: "외향적 매화", title: "만인을 깨우는 봄의 전령사", color: "from-pink-400 to-rose-500", icon: "flower-2", traits: ["독창적인 리더십", "빠른 실행력", "창의적 표현", "열정적 에너지"] },
+                IM: { id: 'IM', name: "내향적 매화", title: "눈 속에서 홀로 피어나는 고귀한 향기", color: "from-rose-400 to-pink-500", icon: "flower-2", traits: ["깊은 통찰력", "독립적 사고", "예술적 감성", "내면의 신념"] },
+                EN: { id: 'EN', name: "외향적 난초", title: "세상을 향해 퍼지는 은은한 지성의 향", color: "from-emerald-400 to-teal-500", icon: "wind", traits: ["객관적 소통", "체계적 관리", "논리적 설득", "깔끔한 대인관계"] },
+                IN: { id: 'IN', name: "내향적 난초", title: "심곡에서 스스로를 닦는 고결한 선비", color: "from-teal-400 to-emerald-500", icon: "wind", traits: ["완벽한 자기관리", "철저한 분석", "정갈한 생활", "지적인 탐구심"] },
+                EG: { id: 'EG', name: "외향적 국화", title: "가을 들판을 수놓는 황금빛 포용력", color: "from-amber-300 to-orange-400", icon: "leaf", traits: ["풍부한 친화력", "유연한 대처", "화합의 리더", "안정적 에너지"] },
+                IG: { id: 'IG', name: "내향적 국화", title: "서리 속에서도 변치 않는 평온한 마음", color: "from-orange-300 to-amber-400", icon: "leaf", traits: ["사려 깊은 배려", "침착한 인내", "따뜻한 조언", "변함없는 신뢰"] },
+                ED: { id: 'ED', name: "외향적 대나무", title: "하늘을 향해 뻗어나가는 불굴의 기개", color: "from-green-400 to-emerald-600", icon: "tree-pine", traits: ["추진력 있는 리더", "정직한 소신", "결단력 있는 행동", "목표 지향적"] },
+                ID: { id: 'ID', name: "내향적 대나무", title: "어떤 풍파에도 굴하지 않는 내면의 절개", color: "from-emerald-500 to-green-600", icon: "tree-pine", traits: ["강직한 원칙주의", "묵묵한 책임감", "내면의 강인함", "일관된 자세"] }
+            };
+
+            const eiQuestions = [
+                { E: "빨리 어울리는", I: "천천히 어울리는" }, { E: "생기 있는", I: "차분한" },
+                { E: "일단 행동하는", I: "충분히 생각하는" }, { E: "말로 표현하는", I: "말이 적은" },
+                { E: "다가가는", I: "기다리는" }, { E: "오래 대화하는", I: "짧게 대화하는" },
+                { E: "함께 하는", I: "혼자 집중하는" }, { E: "외출하는", I: "휴식하는" },
+                { E: "크게 웃는", I: "미소 짓는" }, { E: "활발한", I: "조용한" },
+                { E: "쉽게 알려지는", I: "천천히 알려지는" }, { E: "참여하는", I: "숙고하는" },
+                { E: "열정적인", I: "정적인" }, { E: "활동적인", I: "신중한" },
+                { E: "사교적인", I: "개인적인" }, { E: "재빠른", I: "진중한" },
+                { E: "생동감 있는", I: "안정감 있는" }, { E: "다양한 관심", I: "집중하는" },
+                { E: "모험적인", I: "조심성 있는" }, { E: "경험하는", I: "생각하는" }
+            ];
+
+            const sjQuestions = [
+                { M: "논리적인", N: "성실한", G: "여유로운", D: "배려하는" },
+                { M: "전문적인", N: "순서를 따르는", G: "그때그때", D: "마음을 읽는" },
+                { M: "개혁적인", N: "질서를 지키는", G: "유연한", D: "칭찬하는" },
+                { M: "전략적인", N: "모범적인", G: "편의적인", D: "가엽게 여기는" },
+                { M: "통찰하는", N: "준비하는", G: "간편한", D: "위로하는" },
+                { M: "동정적인", N: "확고한", G: "협력하는", D: "빨리 잊어버리는" },
+                { M: "지지해주는", N: "토론하는", G: "자세가 바른", D: "재미있는" },
+                { M: "자비로운", N: "예측하는", G: "마무리하는", D: "걱정이 적은" },
+                { M: "공감하는", N: "개발하는", G: "끈기 있는", D: "자발적인" },
+                { M: "격려하는", N: "합리적인", G: "부지런한", D: "편의적인" },
+                { M: "임기응변적인", N: "감성적인", G: "비평적인", D: "꼼꼼한" },
+                { M: "간결한", N: "의미 있는", G: "객관적인", D: "구조화된" },
+                { M: "농담을 잘 하는", N: "낭만적인", G: "논쟁적인", D: "권위를 존중하는" },
+                { M: "태평스러운", N: "온화한", G: "비유적인", D: "근면한" },
+                { M: "흥겨운", N: "관계적인", G: "결단하는", D: "믿음직한" },
+                { M: "규범적인", N: "느긋한", G: "사려 깊은", D: "기획하는" },
+                { M: "세밀한", N: "개방적인", G: "온정적인", D: "분석적인" },
+                { M: "단정한", N: "편리한", G: "친밀한", D: "독창적인" },
+                { M: "한결같은", N: "쉽게 생각하는", G: "관계를 중시하는", D: "자신감 있는" },
+                { M: "확실한", N: "충동적인", G: "양보하는", D: "지적인" }
+            ];
+
+            const handleEiSelect = (type) => {
+                const nextScore = { ...eiScore, [type]: eiScore[type] + 1 };
+                setEiScore(nextScore);
+                if (eiIdx < eiQuestions.length - 1) setEiIdx(eiIdx + 1);
+                else setView('sagunja_test');
+            };
+
+            const handleSjClick = (type) => {
+                if (tempSelection.includes(type)) {
+                    setTempSelection(tempSelection.filter(t => t !== type));
+                } else if (tempSelection.length < 2) {
+                    setTempSelection([...tempSelection, type]);
+                }
+            };
+
+            const nextSjQuestion = () => {
+                if (tempSelection.length < 2) return;
+                const newSjScore = { ...sjScore };
+                newSjScore[tempSelection[0]] += 2;
+                newSjScore[tempSelection[1]] += 1;
+                setSjScore(newSjScore);
+                setTempSelection([]);
+                if (sjIdx < sjQuestions.length - 1) setSjIdx(sjIdx + 1);
+                else {
+                    const ei = eiScore.E >= eiScore.I ? 'E' : 'I';
+                    const maxScoreValue = Math.max(newSjScore.M, newSjScore.N, newSjScore.G, newSjScore.D);
+                    const topPlantKeys = Object.keys(newSjScore).filter(key => newSjScore[key] === maxScoreValue);
+                    
+                    const results = topPlantKeys.map(key => typeMap[ei + key]);
+                    setFinalResults(results);
+                    setView('result');
+                }
+            };
+
+            const resetTest = () => {
+                try {
+                    window.history.replaceState({}, '', window.location.pathname);
+                } catch (e) {}
+                setEiIdx(0); setSjIdx(0);
+                setEiScore({ E: 0, I: 0 });
+                setSjScore({ M: 0, N: 0, G: 0, D: 0 });
+                setTempSelection([]);
+                setFinalResults([]);
+                setView('intro');
+            };
+
+            const generateShareLink = () => {
+                const baseUrl = window.location.origin + window.location.pathname;
+                const typeKeys = finalResults.map(res => res.id).join(',');
+                const params = new URLSearchParams({
+                    type: typeKeys,
+                    ei: `${eiScore.E}-${eiScore.I}`,
+                    sj: `${sjScore.M}-${sjScore.N}-${sjScore.G}-${sjScore.D}`
+                }).toString();
+                return `${baseUrl}?${params}`;
+            };
+
+            const copyToClipboard = () => {
+                const link = generateShareLink();
+                const textArea = document.createElement("textarea");
+                textArea.value = link;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    setIsCopied(true);
+                    setTimeout(() => setIsCopied(false), 2000);
+                } catch (err) {}
+                document.body.removeChild(textArea);
+            };
+
+            return (
+                <div className="min-h-screen bg-white text-slate-800 pb-20">
+                    <nav className="flex items-center justify-between px-6 py-4 max-w-2xl mx-auto border-b border-slate-50 sticky top-0 bg-white/80 backdrop-blur-md z-30">
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center shadow-md">
+                                <Icon name="award" className="w-5 h-5 text-white" />
+                            </div>
+                            <span className="font-bold text-xl tracking-tight text-slate-900 uppercase">사군자 기질 진단</span>
+                        </div>
+                        <button onClick={resetTest} className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 hover:bg-green-100 rounded-full transition-colors text-green-600 font-bold text-sm">
+                            <Icon name="home" className="w-4 h-4" />
+                            <span>홈으로</span>
+                        </button>
+                    </nav>
+
+                    <main className="max-w-xl mx-auto px-6 py-10 animate-fade-in">
+                        {view === 'intro' && (
+                            <div className="text-center">
+                                <div className="mb-10 relative flex justify-center items-center">
+                                    <div className="absolute -inset-10 bg-green-50 blur-3xl rounded-full opacity-40"></div>
+                                    <div className="relative grid grid-cols-2 gap-4">
+                                        <div className="p-6 bg-white rounded-3xl border border-slate-100 shadow-xl shadow-rose-100/40 flex items-center justify-center transform hover:scale-105 transition-transform"><Icon name="flower-2" className="w-12 h-12 text-rose-400" /></div>
+                                        <div className="p-6 bg-white rounded-3xl border border-slate-100 shadow-xl shadow-emerald-100/40 flex items-center justify-center transform hover:scale-105 transition-transform"><Icon name="wind" className="w-12 h-12 text-emerald-400" /></div>
+                                        <div className="p-6 bg-white rounded-3xl border border-slate-100 shadow-xl shadow-amber-100/40 flex items-center justify-center transform hover:scale-105 transition-transform"><Icon name="leaf" className="w-12 h-12 text-amber-400" /></div>
+                                        <div className="p-6 bg-white rounded-3xl border border-slate-100 shadow-xl shadow-green-100/40 flex items-center justify-center transform hover:scale-105 transition-transform"><Icon name="tree-pine" className="w-12 h-12 text-green-500" /></div>
+                                    </div>
+                                </div>
+                                <h1 className="text-4xl font-extrabold mb-4 tracking-tight text-slate-900">사군자 기질 진단</h1>
+                                <p className="text-slate-500 text-lg mb-10 leading-relaxed font-medium">당신의 고유한 기질을 확인하고<br/>동양 철학에 근거한 기질 분석을 받아보세요.</p>
+                                <button onClick={() => setView('ei_test')} className="w-full py-5 bg-green-600 hover:bg-green-700 text-white rounded-3xl font-bold text-xl shadow-xl transition-all flex items-center justify-center gap-2">진단 시작하기 <Icon name="chevron-right" className="w-6 h-6" /></button>
+                            </div>
+                        )}
+
+                        {(view === 'ei_test' || view === 'sagunja_test') && (
+                            <div className="animate-fade-in">
+                                <div className="mb-8 text-center">
+                                    <span className="inline-block px-4 py-1.5 bg-green-50 text-green-600 rounded-full text-xs font-bold uppercase tracking-widest mb-4">Step {view === 'ei_test' ? '1' : '2'}</span>
+                                    <h2 className="text-2xl font-bold text-slate-900">{view === 'ei_test' ? '나를 더 잘 나타내는 단어는?' : '가장 공감되는 단어 1, 2순위 선택'}</h2>
+                                </div>
+                                <div className="w-full bg-slate-100 h-1.5 rounded-full mb-6 overflow-hidden">
+                                    <div className="bg-green-600 h-full transition-all duration-500" style={{ width: view === 'ei_test' ? `${((eiIdx + 1) / 20) * 100}%` : `${((sjIdx + 1) / 20) * 100}%` }} />
+                                </div>
+                                {view === 'ei_test' ? (
+                                    <div className="grid gap-4">
+                                        {['E', 'I'].map(t => <button key={t} onClick={() => handleEiSelect(t)} className="p-8 text-center bg-white hover:bg-green-50 border-2 border-slate-100 hover:border-green-300 rounded-3xl font-bold text-xl transition-all shadow-sm">{eiQuestions[eiIdx][t]}</button>)}
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-2 gap-4 mb-10">
+                                        {Object.keys(sjQuestions[sjIdx]).map(t => {
+                                            const idx = tempSelection.indexOf(t);
+                                            return <button key={t} onClick={() => handleSjClick(t)} className={`relative p-6 h-36 rounded-2xl border-2 font-bold text-lg transition-all ${idx !== -1 ? 'bg-green-600 border-green-600 text-white shadow-md' : 'bg-white border-slate-100 text-slate-700 hover:border-green-200 shadow-sm'}`}>
+                                                {idx !== -1 && <span className="absolute top-3 left-3 w-8 h-8 bg-white text-green-600 rounded-full flex items-center justify-center text-xs font-black shadow-sm">{idx + 1}</span>}
+                                                {sjQuestions[sjIdx][t]}
+                                            </button>
+                                        })}
+                                    </div>
+                                )}
+                                {view === 'sagunja_test' && <button disabled={tempSelection.length < 2} onClick={nextSjQuestion} className={`w-full py-5 rounded-3xl font-bold text-lg transition-all ${tempSelection.length === 2 ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 text-slate-300'}`}>다음 질문으로</button>}
+                            </div>
+                        )}
+
+                        {view === 'result' && finalResults.length > 0 && (
+                            <div className="animate-fade-in">
+                                <div className="text-center mb-10">
+                                    <h3 className="text-green-600 font-bold uppercase mb-6 text-sm tracking-widest">
+                                        {finalResults.length > 1 ? '복합 기질 진단 결과' : '기질 진단 결과'}
+                                    </h3>
+                                    
+                                    {/* 결과 타이틀 나란히 배치 */}
+                                    <div className={`flex flex-wrap justify-center gap-8 ${finalResults.length > 1 ? 'items-start' : 'items-center'}`}>
+                                        {finalResults.map((res, idx) => (
+                                            <div key={idx} className="flex flex-col items-center max-w-[180px]">
+                                                <div className={`inline-flex p-6 rounded-full bg-gradient-to-br ${res.color} shadow-xl mb-4`}>
+                                                    <Icon name={res.icon} className="w-12 h-12 text-white" />
+                                                </div>
+                                                <h2 className="text-2xl font-black mb-1 text-slate-900 break-keep">{res.name}</h2>
+                                                <p className="text-xs text-slate-500 font-medium italic leading-tight px-2">"{res.title}"</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="bg-white border border-slate-100 rounded-3xl p-8 shadow-xl mb-8">
+                                    <h4 className="text-xs font-bold text-green-600 uppercase tracking-widest mb-4">핵심 기질 특성</h4>
+                                    <div className="space-y-6">
+                                        {finalResults.map((res, idx) => (
+                                            <div key={idx} className={finalResults.length > 1 ? "border-l-4 border-green-100 pl-4 py-1" : ""}>
+                                                {finalResults.length > 1 && <p className="text-xs font-black text-slate-400 mb-2 uppercase tracking-tighter">[{res.name}]</p>}
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    {res.traits.map((trait, i) => (
+                                                        <div key={i} className="flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                                            <Icon name="check-circle-2" className="w-4 h-4 text-green-600" />
+                                                            <span className="text-xs font-bold text-slate-800">{trait}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div className="border-t border-slate-100 pt-8 mt-8">
+                                        <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2"><Icon name="bar-chart-2" className="w-4 h-4" /> 세부 분석 데이터</h4>
+                                        <div className="mb-10">
+                                            <div className="flex justify-between text-xs font-bold mb-3"><span>외향 (E) {Math.round((eiScore.E/20)*100)}%</span><span>내향 (I) {Math.round((eiScore.I/20)*100)}%</span></div>
+                                            <div className="w-full h-4 bg-slate-100 rounded-full flex overflow-hidden shadow-inner">
+                                                <div className="bg-green-500 h-full transition-all duration-1000" style={{ width: `${(eiScore.E / 20) * 100}%` }} /><div className="bg-green-200 h-full transition-all duration-1000" style={{ width: `${(eiScore.I / 20) * 100}%` }} />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-6">
+                                            {[{l: "매화 (M)", s: sjScore.M, c: "bg-pink-400"}, {l: "난초 (N)", s: sjScore.N, c: "bg-emerald-400"}, {l: "국화 (G)", s: sjScore.G, c: "bg-amber-400"}, {l: "대나무 (D)", s: sjScore.D, c: "bg-green-500"}].map((i, k) => (
+                                                <div key={k} className="space-y-2">
+                                                    <div className="flex justify-between items-end">
+                                                        <span className="text-sm font-bold text-slate-700">{i.l}</span>
+                                                        <div className="flex items-center gap-2">
+                                                            {finalResults.some(res => res.name.includes(i.l.split(' ')[0])) && <span className="bg-green-100 text-green-700 text-[10px] px-1.5 py-0.5 rounded-md font-black animate-pulse">BEST</span>}
+                                                            <span className="text-xs font-black text-green-700">{i.s}점</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="w-full h-2 bg-slate-50 rounded-full border border-slate-100 overflow-hidden"><div className={`${i.c} h-full transition-all duration-1000`} style={{ width: `${(i.s / 60) * 100 * 2}%` }} /></div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <button onClick={resetTest} className="py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-bold transition-all">다시하기</button>
+                                    <button onClick={() => setShowShareModal(true)} className="py-4 bg-green-600 hover:bg-green-700 text-white rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all"><Icon name="share-2" className="w-5 h-5" /> 링크 공유</button>
+                                </div>
+                            </div>
+                        )}
+                    </main>
+
+                    {showShareModal && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm">
+                            <div className="bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl p-8">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h2 className="text-xl font-black text-slate-900 flex items-center gap-2"><Icon name="link" className="w-5 h-5 text-green-600" /> 링크 공유</h2>
+                                    <button onClick={() => setShowShareModal(false)} className="p-2 bg-slate-100 rounded-full"><Icon name="x" className="w-4 h-4 text-slate-500" /></button>
+                                </div>
+                                <div className="relative group mb-6">
+                                    <input type="text" readOnly value={generateShareLink()} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-4 pl-4 pr-12 text-xs font-medium text-slate-400" />
+                                    <button onClick={copyToClipboard} className="absolute right-2 top-2 p-2 bg-green-600 text-white rounded-xl shadow-lg active:scale-90">
+                                        {isCopied ? <Icon name="check" className="w-5 h-5" /> : <Icon name="copy" className="w-5 h-5" />}
+                                    </button>
+                                </div>
+                                <button onClick={() => setShowShareModal(false)} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold">확인</button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
